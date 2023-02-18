@@ -1,4 +1,5 @@
 library(dplyr)
+library(tidyr)
 library(Seurat)
 library(patchwork)
 library(plyr)
@@ -243,42 +244,13 @@ pdf('./out/caf-umap-deg.pdf')
 FeaturePlot(asan3.caf, features = c('HES4', 'FBLIM1', 'TINAGL1', 'TXNIP', 'DCN', 'MGP'))
 dev.off()
 
-###########
-# Myeloid #
-###########
-
-# asan3 <- readRDS('./dat/asan3.rds')
-# asan3.tam <- readRDS('./dat/asan3-tam.rds')
-
-asan3.tam <- subset(x = asan3, subset = celltype == 'Myeloid')
-asan3.tam <- RunPCA(asan3.tam, npcs = 50)
-asan3.tam <- RunUMAP(asan3.tam, dims = 1:50)
-asan3.tam <- FindNeighbors(asan3.tam, dims = 1:50)
-asan3.tam <- FindClusters(asan3.tam, resolution = 0.05)
-
-saveRDS(asan3.tam, './dat/asan3-tam.rds') # 24,093 cells
-
-pdf('./out/tam-umap-tissue.pdf', width = 10, height = 7)
-DimPlot(asan3.tam, reduction = 'umap', group.by = 'tissue')
-dev.off()
-
-pdf('./out/tam-umap-patient.pdf', width = 10, height = 7)
-DimPlot(asan3.tam, reduction = 'umap', group.by = 'patient')
-dev.off()
-
-# DEG analysis
-markers <- FindMarkers(asan3.tam, ident.1 = 'T', ident.2 = 'N', group.by = 'tissue')
-write.csv(markers, './out/tam-deg-table.csv')
-
-pdf('./out/tam-umap-deg.pdf')
-FeaturePlot(asan3.tam, features = c('CAPG', 'SELENOP', 'LYVE1', 'FOS', 'CLEC10A', 'FOSB'))
-dev.off()
-
 #################
 # Clinical data #
 #################
 
 asan3 <- readRDS('./dat/asan3.rds')
+
+asan3 <- AddMetaData(asan3, ifelse(asan3@meta.data$Age < 65, '<65', '>=65'), 'Age65')
 
 pdf('./out/5gex-umap-age.pdf', width = 10, height = 7)
 FeaturePlot(asan3, features = 'Age', order = T, split = 'tissue')
@@ -329,7 +301,8 @@ t.pni <- plot_one(asan3.tumor, 'PerineuralInvasion')
 t.lnm <- plot_one(asan3.tumor, 'LymphNodeMetastasis')
 t.tia <- plot_one(asan3.tumor, 'BinTILsIntra')
 t.tpi <- plot_one(asan3.tumor, 'BinTILsPeri')
-t.tey <- plot_one(asan3.tumor, 'BinTumorDensity', legend = T)
+t.tey <- plot_one(asan3.tumor, 'BinTumorDensity')
+t.age <- plot_one(asan3.tumor, 'Age65', legend = T)
 
 n.msi <- plot_one(asan3.normal, 'MSI')
 n.tnm <- plot_one(asan3.normal, 'TNM')
@@ -342,70 +315,15 @@ n.pni <- plot_one(asan3.normal, 'PerineuralInvasion')
 n.lnm <- plot_one(asan3.normal, 'LymphNodeMetastasis')
 n.tia <- plot_one(asan3.normal, 'BinTILsIntra')
 n.tpi <- plot_one(asan3.normal, 'BinTILsPeri')
-n.tey <- plot_one(asan3.normal, 'BinTumorDensity', legend = T)
+n.tey <- plot_one(asan3.normal, 'BinTumorDensity')
+n.age <- plot_one(asan3.normal, 'Age65', legend = T)
 
 pdf('./out/5gex-clin-tumor.pdf', width = 9, height = 12)
-ggarrange(t.msi, t.tnm, t.sex, t.dif, t.loc, t.lvi, t.vni, t.pni, t.lnm, t.tia, t.tpi, t.tey,  ncol = 3, nrow = 4, common.legend = T, legend = 'right')
+ggarrange(t.msi, t.tnm, t.sex, t.dif, t.loc, t.lvi, t.vni, t.pni, t.lnm, t.tia, t.tpi, t.tey, t.age, ncol = 4, nrow = 4, common.legend = T, legend = 'right')
 dev.off()
 
 pdf('./out/5gex-clin-normal.pdf', width = 9, height = 12)
-ggarrange(n.msi, n.tnm, n.sex, n.dif, n.loc, n.lvi, n.vni, n.pni, n.lnm, n.tia, n.tpi, n.tey, ncol = 3, nrow = 4, common.legend = T, legend = 'right')
-dev.off()
-
-###########
-# T-cells #
-###########
-
-# NK cells: NCAM1 (CD56)
-
-asan3 <- readRDS('./dat/asan3.rds')
-asan3.tcl <- subset(x = asan3, subset = celltype == 'T-cells')
-asan3.tcl <- RunPCA(asan3.tcl, npcs = 50)
-asan3.tcl <- RunUMAP(asan3.tcl, dims = 1:50, n.neighbors = 50L)
-asan3.tcl <- FindNeighbors(asan3.tcl, dims = 1:50)
-asan3.tcl <- FindClusters(asan3.tcl, resolution = 0.05)
-
-saveRDS(asan3.tcl, './dat/asan3-tcl.rds') # 219,082 cells
-
-pdf('./out/tcl-umap-tissue.pdf', width = 10, height = 7)
-DimPlot(asan3.tcl, reduction = 'umap', group.by = 'tissue')
-dev.off()
-
-pdf('./out/tcl-umap-patient.pdf', width = 10, height = 7)
-DimPlot(asan3.tcl, reduction = 'umap', group.by = 'patient')
-dev.off()
-
-pdf('./out/tcl-umap-leiden.pdf', width = 10, height = 7)
-DimPlot(asan3.tcl, reduction = 'umap', label = T)
-dev.off()
-
-asan3.tcl <- readRDS('./dat/asan3-tcl.rds')
-
-bp <- BlueprintEncodeData()
-
-bp.pred <- SingleR(test = as.SingleCellExperiment(asan3.tcl),
-                   ref = bp, assay.type.test = 1, labels = bp$label.fine)
-
-n <- length(bp.pred$labels)
-cells.use <- sort(sample.int(n, n/100, replace = F))
-
-pdf('./out/tcl-bp-heatmap.pdf', width = 20, height = 14)
-plotScoreHeatmap(bp.pred, cells.use = cells.use, clusters = unlist(asan3.tcl[['seurat_clusters']]))
-dev.off()
-
-targets <- c('NK cells', 'CD4+ T-cells', 'CD8+ T-cells', 'CD8+ Tem', 'CD8+ Tcm', 'Tregs', 'CD4+ Tem', 'CD4+ Tcm')
-
-bp.updated <- mapply(function(x) {if (x %in% targets) {x} else 'Other'}, bp.pred$labels)
-
-asan3.tcl[['bp.original']] <- bp.pred$labels
-asan3.tcl[['bp.updated']] <- bp.updated
-
-pdf('./out/tcl-umap-bp.pdf', width = 10, height = 7)
-DimPlot(asan3.tcl, reduction = 'umap', label = T, group.by = 'bp.updated')
-dev.off()
-
-pdf('./out/tcl-canonical-markers.pdf', width = 10, height = 7)
-VlnPlot(asan3.tcl, group.by = 'seurat_clusters', features = c('FOXP3', 'CTLA4', 'LAG3', 'CCR7', 'SELL', 'TCF7', 'ANXA1', 'IL7R', 'LMNA', 'CXCL13', 'GZMA', 'GZMB', 'GZMH', 'IFNG', 'PRF1', 'HAVCR2', 'CD96', 'EOMES', 'KLRG1', 'CD83'), pt.size = 0, ncol = 4)
+ggarrange(n.msi, n.tnm, n.sex, n.dif, n.loc, n.lvi, n.vni, n.pni, n.lnm, n.tia, n.tpi, n.tey, n.age, ncol = 4, nrow = 4, common.legend = T, legend = 'right')
 dev.off()
 
 ################
@@ -427,6 +345,73 @@ combined <- combineTCR(
   ID = substr(aggr$sample_id, 3, 3),
   cells = 'T-AB'
 )
+
+for (i in seq_along(combined)) {
+  combined[[i]]$barcode <- sapply(strsplit(combined[[i]]$barcode, '_'), function(f) f[[3]])
+  combined[[i]]$barcode <- paste(sapply(strsplit(combined[[i]]$barcode, '-'), function(f) f[[1]]), i, sep = '-')
+  combined[[i]]$sample_id <- aggr$sample_id[[i]]
+}
+
+asan3.imm <- readRDS('./dat/asan3-imm.rds')
+
+asan3.tcr <- combineExpression(
+  combined,
+  asan3.imm,
+  cloneCall = 'aa',
+  proportion = F,
+  filterNA = T,
+  cloneTypes = c(Single = 1, Small = 5, Medium = 20, Large = 100, Hyperexpanded = 2000)
+)
+
+targets <- c('Treg', 'NK_CD56bright', 'NK Proliferating', 'NK', 'MAIT', 'gdT', 'dnT', 'CD8 TEM', 'CD8 TCM', 'CD8 Proliferating', 'CD8 Naive', 'CD4 TEM', 'CD4 TCM', 'CD4 Proliferating', 'CD4 Native', 'CD4 CTL')
+
+asan3.tcr <- subset(asan3.tcr, subset = final.celltype %in% targets)
+
+saveRDS(asan3.tcr, './dat/asan3-tcr.rds') # 138,963 cells
+
+asan3.tcr <- readRDS('./dat/asan3-tcr.rds')
+
+# Filter out cells using gene expression
+
+for (i in seq_along(combined)) {
+  keep <- combined[[i]]$barcode %in% colnames(asan3.tcr)
+  combined[[i]] <- combined[[i]][keep, ]
+}
+
+n <- 0
+
+for (i in seq_along(combined)) {
+  n <- n + dim(combined[[i]])[1]
+}
+
+saveRDS(combined, './dat/combined.rds') #138,963 cells
+
+# Compare the proportion of subtypes between tumor and normal 
+
+asan3.tcr.t <- subset(x = asan3.tcr, subset = tissue == 'T')
+asan3.tcr.n <- subset(x = asan3.tcr, subset = tissue == 'N')
+
+df.t <- as.data.frame(asan3.tcr.t@meta.data %>% group_by(as.factor(final.celltype), as.factor(cloneType), .drop = F) %>% dplyr::count())
+df.n <- as.data.frame(asan3.tcr.n@meta.data %>% group_by(as.factor(final.celltype), as.factor(cloneType), .drop = F) %>% dplyr::count())
+
+colnames(df.t) = c('final.celltype', 'cloneType', 'count')
+colnames(df.n) = c('final.celltype', 'cloneType', 'count')
+
+write.csv(df.t, './out/tcr-prop-tumor.csv', row.names = F)
+write.csv(df.n, './out/tcr-prop-normal.csv', row.names = F)
+
+legend.order <- c('Hyperexpanded (100 < X <= 2000)', 'Large (20 < X <= 100)', 'Medium (5 < X <= 20)', 'Small (1 < X <= 5)', 'Single (0 < X <= 1)')
+
+df.t$cloneType <- factor(df.t$cloneType, levels = legend.order)
+df.n$cloneType <- factor(df.n$cloneType, levels = legend.order)
+
+pdf('./out/tcr-prop-subtypes.pdf', width = 15, height = 6)
+p1 <- ggplot(df.n, aes(fill = cloneType, y = count, x = final.celltype)) + geom_bar(position = 'fill', stat = 'identity') + coord_flip() + ggtitle('Normal') + theme(plot.title = element_text(size = 20, hjust = 0.5), axis.title.x = element_blank(), axis.title.y = element_blank())
+p2 <- ggplot(df.t, aes(fill = cloneType, y = count, x = final.celltype)) + geom_bar(position = 'fill', stat = 'identity') + coord_flip() + ggtitle('Tumor') + theme(plot.title = element_text(size = 20, hjust = 0.5), axis.title.x = element_blank(), axis.title.y = element_blank())
+ggarrange(p1, p2, ncol = 2, nrow = 1, common.legend = T, legend = 'right')
+dev.off()
+
+# Make scRepertoire plots
 
 pdf('./out/tcr-quantContig.pdf', width = 10, height = 10)
 quantContig(combined, cloneCall = 'aa', scale = F)
@@ -450,8 +435,18 @@ p.48 <- compareClonotypes(combined, numbers = 10, samples = c('48_N', '48_T'), c
 ggarrange(p.15, p.16, p.35, p.41, p.47, p.48, ncol = 3, nrow = 2)
 dev.off()
 
-pdf('./out/tcr-clonalHomeostasis.pdf', width = 10, height = 10)
-clonalHomeostasis(combined, cloneCall = 'aa')
+# Make individual plots
+
+for (donor in unique(aggr$donor)) {
+  normal <- paste(donor, '_N', sep = '')
+  tumor <- paste(donor, '_T', sep = '')
+  pdf(paste('./out/tcr-compareClonotypes-', donor,'.pdf', sep = ''), width = 5, height = 5)
+  print(compareClonotypes(combined, numbers = 10, samples = c(normal, tumor), cloneCall = 'aa', graph = 'alluvial') + theme(legend.position='none'))
+  dev.off()
+}
+
+pdf('./out/tcr-clonalHomeostasis.pdf', width = 15, height = 5)
+clonalHomeostasis(combined, cloneCall = 'aa') + theme(axis.text.x = element_text(angle = 45, hjust = 1))
 dev.off()
 
 pdf('./out/tcr-clonesizeDistribution.pdf', width = 10, height = 10)
@@ -462,39 +457,155 @@ pdf('./out/tcr-clonalOverlap.pdf', width = 10, height = 10)
 clonalOverlap(combined, cloneCall = 'aa', method = 'morisita')
 dev.off()
 
-pdf('./out/tcr-clonalDiversity.pdf', width = 10, height = 10)
-clonalDiversity(combined, cloneCall = 'aa', n.boots = 100, group.by = 'sample',  x.axis = 'ID')
+# pdf('./out/tcr-clonalDiversity.pdf', width = 10, height = 10)
+# clonalDiversity(combined, cloneCall = 'aa', n.boots = 100, group.by = 'sample',  x.axis = 'ID')
+# dev.off()
+
+# pdf('./out/tcr-scatterClonotype.pdf', width = 10, height = 10)
+# scatterClonotype(combined, cloneCall = 'aa', x.axis = 'N', y.axis = 'T', graph = 'proportion')
+# dev.off()
+
+################
+# Immune cells #
+################
+
+library(Seurat)
+library(Azimuth)
+library(SeuratData)
+library(patchwork)
+
+# conda create -n azimuth2 -c conda-forge r-seuratdisk r-hdf5r bioconductor-glmgampoi r-seurat r-devtools
+# asan3 <- readRDS('./dat/asan3.rds')
+# asan3.imm <- subset(x = asan3, subset = celltype %in% c('T-cells', 'B-cells', 'Myeloid'))
+# saveRDS(asan3.imm, './dat/asan3-imm.rds') # 381,488 cells
+
+asan3.imm <- readRDS('./dat/asan3-imm.rds')
+
+# asan3.imm <- RunAzimuth(asan3.imm, reference = 'pbmcref')
+
+asan3.imm <- AddMetaData(asan3.imm, ifelse(asan3.imm@meta.data$TumorDensity > 22.345, 'High', 'Low'), 'BinTumorDensity')
+asan3.imm <- AddMetaData(asan3.imm, ifelse(asan3.imm@meta.data$TILsPeri > 9.1565, 'High', 'Low'), 'BinTILsPeri')
+asan3.imm <- AddMetaData(asan3.imm, ifelse(asan3.imm@meta.data$TILsIntra > 6.532, 'High', 'Low'), 'BinTILsIntra')
+asan3.imm <- AddMetaData(asan3.imm, ifelse(asan3.imm@meta.data$Age < 65, '<65', '>=65'), 'Age65')
+
+pdf('./out/imm-umap-together-l2.pdf', width = 10, height = 7)
+p1 <- DimPlot(asan3.imm, reduction = 'umap', group.by = 'predicted.celltype.l2')
+LabelClusters(plot = p1, id = 'predicted.celltype.l2')
 dev.off()
 
-pdf('./out/tcr-scatterClonotype.pdf', width = 10, height = 10)
-scatterClonotype(combined, cloneCall = 'aa', x.axis = 'N', y.axis = 'T', graph = 'proportion')
+pdf('./out/imm-umap-split-l2.pdf', width = 10, height = 7)
+DimPlot(asan3.imm, reduction = 'umap', split.by = 'predicted.celltype.l2', ncol = 6, group.by = 'predicted.celltype.l2') + NoLegend()
 dev.off()
 
-asan.tumor <- readRDS('./dat/asan6-tumor.rds')
-asan.normal <- readRDS('./dat/asan6-normal.rds')
+double.positive <- GetAssayData(object = asan3.imm)['SELL', ] > 0 & GetAssayData(object = asan3.imm)['CCR7', ] > 0
 
-rownames(asan.tumor@meta.data) <- paste(asan.tumor@meta.data$patient, asan.tumor@meta.data$tissue, rownames(asan.tumor@meta.data), sep = '_')
-rownames(asan.normal@meta.data) <- paste(asan.normal@meta.data$patient, asan.normal@meta.data$tissue, rownames(asan.normal@meta.data), sep = '_')
+asan3.imm <- AddMetaData(asan3.imm, double.positive, 'double.positive')
 
-rownames(asan.tumor@meta.data) <- paste(sapply(strsplit(rownames(asan.tumor@meta.data), '-'), `[`, 1), '-1', sep = '')
-rownames(asan.normal@meta.data) <- paste(sapply(strsplit(rownames(asan.normal@meta.data), '-'), `[`, 1), '-1', sep = '')
+# Manually assign TCM vs. TEM
+one_row <- function(r) {
+  if (r['predicted.celltype.l2'] == 'CD4 TCM' || r['predicted.celltype.l2'] == 'CD4 TEM') {
+    if (r['double.positive']) {
+      'CD4 TCM'
+    } else {
+      'CD4 TEM'
+    }
+  } else if (r['predicted.celltype.l2'] == 'CD8 TCM' || r['predicted.celltype.l2'] == 'CD8 TEM') {
+    if (r['double.positive']) {
+      'CD8 TCM'
+    } else {
+      'CD8 TEM'
+    }
+  } else {
+    r['predicted.celltype.l2']
+  }
+}
 
-seurat.tumor <- combineExpression(
-  combined,
-  asan.tumor,
-  cloneCall = 'gene',
-  proportion = F,
-  cloneTypes = c(Single = 1, Small = 5, Medium = 20, Large = 100, Hyperexpanded = 500)
-)
+asan3.imm <- AddMetaData(asan3.imm, apply(asan3.imm@meta.data, 1, one_row), 'final.celltype')
 
-seurat.normal <- combineExpression(
-  combined,
-  asan.normal,
-  cloneCall = 'gene',
-  proportion = F,
-  cloneTypes = c(Single = 1, Small = 5, Medium = 20, Large = 100, Hyperexpanded = 500)
-)
+pdf('./out/imm-double-positive.pdf', width = 10, height = 7)
+VlnPlot(asan3.imm, group.by = 'final.celltype', features = c('CCR7', 'SELL'), pt.size = 0, ncol = 1)
+dev.off()
 
-seurat.tumor@meta.data$exclude <- ifelse(test = is.na(seurat.tumor@meta.data$barcode), yes = 'yes', no = 'no')
-subset(seurat.tumor, subset = exclude == 'no')
+pdf('./out/imm-umap-tissue.pdf', width = 10, height = 7)
+DimPlot(asan3.imm, reduction = 'umap', split.by = 'tissue', ncol = 6, group.by = 'final.celltype')
+dev.off()
 
+pdf('./out/imm-umap-split-final.pdf', width = 10, height = 7)
+DimPlot(asan3.imm, reduction = 'umap', split.by = 'final.celltype', ncol = 6, group.by = 'final.celltype') + NoLegend()
+dev.off()
+
+pdf('./out/imm-umap-together-final.pdf', width = 10, height = 7)
+p1 <- DimPlot(asan3.imm, reduction = 'umap', group.by = 'final.celltype')
+LabelClusters(plot = p1, id = 'final.celltype')
+dev.off()
+
+asan3.imm.tumor <- subset(x = asan3.imm, subset = tissue == 'T')
+asan3.imm.normal <- subset(x = asan3.imm, subset = tissue == 'N')
+
+df.all <- as.data.frame(table(asan3.imm$final.celltype))
+df.tumor <- as.data.frame(table(asan3.imm.tumor$final.celltype))
+df.normal <- as.data.frame(table(asan3.imm.normal$final.celltype))
+df.all['Tissue'] = 'All'
+df.tumor['Tissue'] = 'T'
+df.normal['Tissue'] = 'N'
+df = rbind(df.all, df.tumor, df.normal)
+colnames(df) = c('Type', 'Fraction', 'Tissue')
+
+write.csv(df.all, './out/imm-prop-all.csv', row.names=F)
+write.csv(df.tumor, './out/imm-prop-tumor.csv', row.names=F)
+write.csv(df.normal, './out/imm-prop-normal.csv', row.names=F)
+
+pdf('./out/imm-cell-prop.pdf', width = 10, height = 7)
+ggplot(df, aes(fill = Type, y = Fraction, x = Tissue)) + geom_bar(position = 'fill', stat = 'identity')
+dev.off()
+
+plot_one <- function(object, split.by, legend=F) {
+  obj.list <- SplitObject(object, split.by = split.by)
+  for (i in 1:length(obj.list)) {
+    obj.list[[i]] <- as.data.frame(table(obj.list[[i]]$final.celltype))
+    obj.list[[i]][split.by] <- names(obj.list[i])
+  }
+  df <- bind_rows(obj.list)
+  colnames(df) <- c('Type', 'Fraction', split.by)
+  p <- ggplot(df, aes_string(fill = 'Type', y = 'Fraction', x = split.by)) + geom_bar(position = 'fill', stat = 'identity')
+  if (!legend) {
+    p <- p + theme(legend.position='none')
+  }
+  return(p)
+}
+
+t.msi <- plot_one(asan3.imm.tumor, 'MSI')
+t.tnm <- plot_one(asan3.imm.tumor, 'TNM')
+t.sex <- plot_one(asan3.imm.tumor, 'Sex')
+t.dif <- plot_one(asan3.imm.tumor, 'DifferentiationLevel')
+t.loc <- plot_one(asan3.imm.tumor, 'Location')
+t.lvi <- plot_one(asan3.imm.tumor, 'LymphovascularInvasion')
+t.vni <- plot_one(asan3.imm.tumor, 'VenousInvasion')
+t.pni <- plot_one(asan3.imm.tumor, 'PerineuralInvasion')
+t.lnm <- plot_one(asan3.imm.tumor, 'LymphNodeMetastasis')
+t.tia <- plot_one(asan3.imm.tumor, 'BinTILsIntra')
+t.tpi <- plot_one(asan3.imm.tumor, 'BinTILsPeri')
+t.tey <- plot_one(asan3.imm.tumor, 'BinTumorDensity')
+t.age <- plot_one(asan3.imm.tumor, 'Age65', legend = T)
+
+n.msi <- plot_one(asan3.imm.normal, 'MSI')
+n.tnm <- plot_one(asan3.imm.normal, 'TNM')
+n.sex <- plot_one(asan3.imm.normal, 'Sex')
+n.dif <- plot_one(asan3.imm.normal, 'DifferentiationLevel')
+n.loc <- plot_one(asan3.imm.normal, 'Location')
+n.lvi <- plot_one(asan3.imm.normal, 'LymphovascularInvasion')
+n.vni <- plot_one(asan3.imm.normal, 'VenousInvasion')
+n.pni <- plot_one(asan3.imm.normal, 'PerineuralInvasion')
+n.lnm <- plot_one(asan3.imm.normal, 'LymphNodeMetastasis')
+n.tia <- plot_one(asan3.imm.normal, 'BinTILsIntra')
+n.tpi <- plot_one(asan3.imm.normal, 'BinTILsPeri')
+n.tey <- plot_one(asan3.imm.normal, 'BinTumorDensity')
+n.age <- plot_one(asan3.imm.normal, 'Age65', legend = T)
+
+pdf('./out/imm-clin-tumor.pdf', width = 9, height = 12)
+ggarrange(t.msi, t.tnm, t.sex, t.dif, t.loc, t.lvi, t.vni, t.pni, t.lnm, t.tia, t.tpi, t.tey, t.age, ncol = 4, nrow = 4, common.legend = T, legend = 'right')
+dev.off()
+
+pdf('./out/imm-clin-normal.pdf', width = 9, height = 12)
+ggarrange(n.msi, n.tnm, n.sex, n.dif, n.loc, n.lvi, n.vni, n.pni, n.lnm, n.tia, n.tpi, n.tey, n.age, ncol = 4, nrow = 4, common.legend = T, legend = 'right')
+dev.off()
